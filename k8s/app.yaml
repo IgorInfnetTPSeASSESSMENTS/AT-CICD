@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: ufology
+data:
+  DB_NAME: "ufology"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-secret
+  namespace: ufology
+type: Opaque
+stringData:
+  DB_PASSWORD: "devops2025!"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ufotracker-app
+  namespace: ufology
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ufotracker-app
+  template:
+    metadata:
+      labels:
+        app: ufotracker-app
+    spec:
+      containers:
+        - name: ufotracker-app
+          image: poliglotamudo/ufotracker-app:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: DB_NAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_PASSWORD
+            - name: POSTGRES_USERNAME
+              value: "postgres"
+            - name: POSTGRES_HOST
+              value: "ufodb"
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: REDIS_HOST
+              value: "ufo-redis"
+            - name: REDIS_PORT
+              value: "6379"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ufotracker-app
+  namespace: ufology
+spec:
+  type: ClusterIP
+  selector:
+    app: ufotracker-app
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
